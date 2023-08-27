@@ -1,0 +1,13 @@
+pybase64
+gunicorn
+Requests==2.29.0
+Flask==2.2.2
+Pillow==9.4.0
+google-auth==2.3.3
+google-auth-httplib2==0.1.0
+google-api-python-client==2.33.0
+google-auth-oauthlib==0.4.6
+astral == 3.2
+humanize == 4.7.0
+env_canada == 0.5.36
+textwrap
