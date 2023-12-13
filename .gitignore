@@ -6,6 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+# Misc
+
+server/fonts/
+server/old/
+install guide.txt
+.devcontainer/
+
 # Distribution / packaging
 .DS_Store
 .Python

@@ -2,8 +2,13 @@
 # this is the main file for the a working eink dashboard, adapted from DispatchPi.
 
 
-# Fix font size in text replacement
-# Add precip probability for two forecasts 
+# TODO
+# ajouter heure à date en haut
+# réduire taile titres list calendrier 
+# remplacer icônes humidité
+# changer aqi par UV (avec icône)
+# intégrer AQI dans prévisions
+
 
 import os
 import flask
@@ -11,6 +16,8 @@ from flask import send_file
 import requests
 import json
 import datetime
+from io import BytesIO
+from itertools import islice
 
 #google libraries
 import google_auth_oauthlib.flow
@@ -19,139 +26,73 @@ from google.auth.transport.requests import Request
 
 #local functions
 
-from helper_functions import generate_credentials, pull_and_display_image, update_svg, get_sun_times
-from update_weather_time import *
-from google_tasks import Gtasks_connector
+from gmail_connector import GmailConnector
+from google_calendar import GCalConnector
+from eink_image import Image_transform
+from svg_updater import SVGFile
+from get_weather import GetEnviroCanWeather
+from google_tasks import GtasksConnector
 
 ##SECRETS  - change the file paths as needed
 
 #Path to your API credentials file
-CLIENT_SECRETS_FILE_GMAIL = "secrets/client_secret_gmail.json"
-CLIENT_SECRETS_FILE_GTASKS = "secrets/client_secret_gtasks.json"
+CLIENT_SECRETS_FILE = "secrets/api_credentials.json"
 #Path to your API Access token file
 TOKEN_FILE_GMAIL = 'secrets/token_gmail.json'
 TOKEN_FILE_GTASKS = 'secrets/token_gtasks.json'
+TOKEN_FILE_GCALENDAR = 'secrets/token_gcalendar.json'
 
-#Path to your Flask app key
-FLASK_KEY='secrets/flask_key.json'
+# Import ENV variables
+# Load JSON data from a file
+with open('secrets/config.json', 'r', encoding='utf-8') as file:
+    config_data = json.load(file)
+
+# Extract variables
+GOOGLE_TASKS_LIST_ID = config_data.get('GOOGLE_TASKS_LIST_ID')
+GOOGLE_CALENDAR_ID = config_data.get('GOOGLE_CALENDAR_ID')
+SCOPES_GMAIL = config_data.get('SCOPES', {}).get('GMAIL', ['https://www.googleapis.com/auth/gmail.readonly'])
+SCOPES_GTASKS = config_data.get('SCOPES', {}).get('GTASKS', ['https://www.googleapis.com/auth/tasks.readonly'])
+SCOPES_GCALENDAR = config_data.get('SCOPES', {}).get('GCALENDAR', ['https://www.googleapis.com/auth/calendar.readonly'])
+
+
+# Extract the coordinate string, split it by comma, and convert each part to float
+coord_string = config_data.get('WEATHER_COORDINATES', '0.0, 0.0')
+try:
+    latitude, longitude = map(float, coord_string.split(','))
+    WEATHER_COORDINATES = (latitude, longitude)
+except ValueError:
+    raise ValueError("Invalid format for WEATHER_COORDINATES. Must be two float values separated by a comma.")
 
 ##AUTH
 
 # This OAuth 2.0 access scope allows to read emails
 SCOPES_GMAIL = ['https://www.googleapis.com/auth/gmail.readonly']
 SCOPES_GTASKS = ['https://www.googleapis.com/auth/tasks.readonly']
-#API_SERVICE_NAME = 'gmail'
-#API_VERSION = 'v3'
+SCOPES_GCALENDAR = ['https://www.googleapis.com/auth/calendar.readonly']
 
-##FLASK APP
+## FLASK APP
 app = flask.Flask(__name__)
-   
-# Flask app key (so that session parameters work)
-with open(FLASK_KEY) as secrets_file:
-    key_file = json.load(secrets_file)
-    app.secret_key = key_file['SECRET_KEY']
-  
-# !!!!!! APP STARTS HERE !!!!
-# draw the index
-@app.route('/')
-def index():
+app.secret_key= config_data.get('FLASK_KEY', '101')
 
-  return ('<table>' + 
-          "<tr><td><a href='/display_gmail_image''>See the image pulled from Gmail</a></td>" +
-          "<tr><td><a href='/display_grocery_list''>See the Google Tasks grocery list</a></td>" +
-          "<tr><td><a href='/dashboard_homepage''>See dashboard homepage</a></td>" +    
-          "<tr><td><a href='/weather_output''>See weather output</a></td>" +                
-          '<tr><td><a href="/authorize">Test the auth flow directly (gmail by default). You will be sent back to the index</a></td>' +
-          '<tr><td><a href="/revoke">Revoke current credentials</a></td>' +
-          '</td></tr></table>')
+## FUNCTIONS
 
-# display grocery list fetched from Google Keep
-@app.route('/display_grocery_list')
-def api_route_grocery_list():
-     #update refresh token if we have a token file
-  if os.path.exists(TOKEN_FILE_GTASKS):
-    credentials = generate_credentials(token_file=TOKEN_FILE_GTASKS, scopes=SCOPES_GTASKS)
-  
-  #if there are no credentials, redirect to the authorization flow 
-  else:
-    # keep the current token file and scopes in session memory
-    flask.session['token_file'] = TOKEN_FILE_GTASKS
-    flask.session['scopes'] = SCOPES_GTASKS
-    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE_GTASKS
-    return flask.redirect('authorize')
-
-  # pull and display grocery list
-  # initialize connector
-  Google_tasks =  Gtasks_connector(creds=credentials)
-
-  # print the current lists
-  #Google_tasks.display_lists()
-
-  # show tasks
-  to_buy = Google_tasks.list_tasks(tasklist_id = "QURQdHRPV1RhVkRKWUhWcQ") 
-  
-  return to_buy
+def fetch_grocery_list():
+    if os.path.exists(TOKEN_FILE_GTASKS):
+        credentials = generate_credentials(token_file=TOKEN_FILE_GTASKS, scopes=SCOPES_GTASKS)
+    else:
+        flask.session['token_file'] = TOKEN_FILE_GTASKS
+        flask.session['scopes'] = SCOPES_GTASKS
+        flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
+        return flask.redirect('authorize')
+    
+    Google_tasks = GtasksConnector(creds=credentials)
+    # Google_tasks.get_lists() # Run to see the available task lists in your account
+    grocery_items = Google_tasks.get_tasks(tasklist_id=GOOGLE_TASKS_LIST_ID) # Fetch a specific task list
+    
+    return grocery_items
 
 
-# display weather output
-@app.route('/weather_output')
-def weather_output():
-
-  weather_output = get_can_weather(coordinates=(45.54160128500828, -73.62824930000188))
-
-  pretty_output = format_weather_description(
-     weather_description = weather_output[1]["description"],
-     max_width = 50)
-  
-  return(f'{weather_output}')
-  return(f'{pretty_output}')
-
-# display dashboard homepage
-@app.route('/dashboard_homepage')
-def display_homepage():
-
-
-  # get sunrise/sunset
-  sunrise_local, sunset_local = get_sun_times(coordinates=(45.54160128500828, -73.62824930000188))
-
-  current_period, future_period_1, future_period_2 = ({'temp': '23.3', 'humidex': '28', 'humidity': '67', 'uv_index': '7'}, {'title': 'Ce soir et cette nuit', 'description': "Devenant nuageux ce soir. 60 pour cent de probabilité d'averses au cours de la nuit. Vents du sud-ouest de 20 km/h avec rafales à 40 devenant légers ce soir. Minimum 18.", 'temp': '18', 'temp_class': 'low', 'icon_url': 'https://meteo.gc.ca/weathericons/36.gif', 'precip': '60', 'aqi_next_period_1_title': 'Ce soir et cette nuit', 'aqi_next_period_1': '3'}, {'title': 'Lundi', 'description': 'Dégagement le matin. Maximum 24. Humidex 26. Indice UV de 7 ou élevé.', 'temp': '24', 'temp_class': 'high', 'icon_url': 'https://meteo.gc.ca/weathericons/05.gif', 'precip': '0', 'aqi_next_period_2_title': 'Demain', 'aqi_next_period_2': '2'})
-
-  output_svg_filename = 'svg_output.svg'
-  
-  output_dict = {
-    "current_temp" : current_period["temp"]+" °C",
-    "current_humidex" : current_period["humidex"]+ " °C",
-    "current_humidity" : current_period["humidity"]+ "%",
-    "current_uv_index" : current_period["uv_index"],
-    "aqi_next_period_1_title" : "IQA " + future_period_1["aqi_next_period_1_title"].lower(),
-    "aqi_next_period_1_value" : future_period_1["aqi_next_period_1"],
-    "aqi_next_period_2_title" : "IQA " + future_period_2["aqi_next_period_2_title"].lower(),
-    "aqi_next_period_2_value" : future_period_2["aqi_next_period_2"],
-    "period_1_title" : future_period_1["title"],
-    "period_1_forecast" : future_period_1["description"],
-    "period_1_precip" : future_period_1["precip"]+ "%",
-    "period_1_temp" : future_period_1["temp"]+ " °C",
-    "period_1_temp_type" : future_period_1["temp_class"],
-    "period_2_title" : future_period_2["title"],
-    "period_2_forecast" : future_period_2["description"],
-    "period_2_precip" : future_period_2["precip"]+ "%",
-    "period_2_temp" : future_period_2["temp"]+ " °C",
-    "period_2_temp_type" : future_period_2["temp_class"], 
-    "sunrise" : sunrise_local.strftime('%H:%M'), #display HH:MM
-    "sunset" : sunset_local.strftime('%H:%M'), #display HH:MM 
-  }
-
-  update_svg(template_svg_filename = "svg_final.svg", output_svg_filename = output_svg_filename, output_dict = output_dict)
-
-  # Read the SVG file and send it as a response
-  with open(output_svg_filename, 'r') as f:
-      svg = f.read()
-  return flask.Response(svg, mimetype="image/svg+xml")
-
-# display image pulled from gmail
-@app.route('/display_gmail_image')
-def api_route_gmail_image():
-  
+def fetch_image_from_gmail():
   #update refresh token if we have a token file
   if os.path.exists(TOKEN_FILE_GMAIL):
     credentials = generate_credentials(token_file=TOKEN_FILE_GMAIL, scopes=SCOPES_GMAIL)
@@ -161,12 +102,133 @@ def api_route_gmail_image():
     # keep the current token file and scopes in session memory
     flask.session['token_file'] = TOKEN_FILE_GMAIL
     flask.session['scopes'] = SCOPES_GMAIL
-    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE_GMAIL
+    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
     return flask.redirect('authorize')
 
-  #pull and display image
-  output = pull_and_display_image(creds = credentials)
+  # initialize Gmail connector
+  gmail_inbox =  GmailConnector(creds=credentials)
+
+  # pull attachments (num_emails looks at the X most recent emails to be sure we intercept an attachment)
+  gmail_inbox.pull_attachments(userID='me', num_emails=3)
+
+  # get the image to send
+  image_to_send, output_text = gmail_inbox.grab_first_image(userID = 'me')
+ 
+  # prepare bytes stream
+  output_stream = BytesIO()
+  #transform image into a low res format for the eink screen
+  transformed_image = Image_transform(path_or_image=image_to_send)
+  transformed_image.save(output_path_or_stream = output_stream)
+    
+  # display the image (don't cache it)
+  # output.seek resets the pointer to the beginning of the file 
+  output_stream.seek(0)
+  
+  return send_file(output_stream, mimetype="image/png")
+
+def fetch_weather():
+  weather_service = GetEnviroCanWeather(WEATHER_COORDINATES)
+  return weather_service.get_curr_weather_and_two_next_periods()
+
+def fetch_calendar_events():
+
+  if os.path.exists(TOKEN_FILE_GCALENDAR):
+      credentials = generate_credentials(token_file=TOKEN_FILE_GCALENDAR, scopes=SCOPES_GCALENDAR)
+  else:
+      flask.session['token_file'] = TOKEN_FILE_GCALENDAR
+      flask.session['scopes'] = SCOPES_GCALENDAR
+      flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
+      return flask.redirect('authorize')
+  
+  weather_service = GetEnviroCanWeather(WEATHER_COORDINATES)   # Get local timezone from weather service
+  local_timezone_str = weather_service.get_timezone()
+
+  google_calendar = GCalConnector(creds = credentials, local_timezone_str= local_timezone_str, calendar_id=GOOGLE_CALENDAR_ID)
+  #google_calendar.get_calendars_list() # Run to print the available calendars in your account
+
+  return google_calendar.get_calendar_events()
+
+
+def generate_credentials(token_file, scopes):
+  #if there are stored credentials, retrieve them
+  credentials = Credentials.from_authorized_user_file(token_file, scopes)
+  
+  #if credentials are expired, refresh
+  if not credentials.valid:
+    credentials.refresh(Request())
+
+    #Save credentials to file if they were refreshed 
+    with open(token_file, 'w') as token:
+      token.write(credentials.to_json())
+
+  return credentials
+
+def take_from_dict(n, iterable):
+    """Return the first n items of the iterable as a list."""
+    return list(islice(iterable, n))
+
+  
+## APP STARTS HERE
+
+# draw the index
+@app.route('/')
+def index():
+
+  return ('<table>' + 
+          "<tr><td><a href='/display_gmail_image''>See the image pulled from Gmail</a></td>" +
+          "<tr><td><a href='/display_calendar_events''>See your upcoming Google Calendar events</a></td>" +
+          "<tr><td><a href='/display_grocery_list''>See the Google Tasks grocery list</a></td>" +
+          "<tr><td><a href='/dashboard_homepage''>See dashboard homepage</a></td>" +    
+          "<tr><td><a href='/weather_output''>See weather output</a></td>" +                
+          '<tr><td><a href="/authorize">Test the auth flow directly (gmail by default). You will be sent back to the index</a></td>' +
+          '<tr><td><a href="/revoke">Revoke current credentials</a></td>' +
+          '</td></tr></table>')
+
+# display grocery list fetched from Google Tasks
+@app.route('/display_grocery_list')
+def api_route_grocery_list():
+  return fetch_grocery_list()
+
+# display grocery list fetched from Google Calendar
+@app.route('/display_calendar_events')
+def api_route_calendar_events():
+  return fetch_calendar_events()
+
+# display weather output fetched from Weather Canada
+@app.route('/weather_output')
+def weather_output():
+
+  current_weather, forecast_period_1, forecast_period_2, alerts = fetch_weather()
+    
+  return(f'{current_weather, forecast_period_1, forecast_period_2, alerts}')
+  # return(f'{pretty_output}')
+
+# display dashboard homepage
+@app.route('/dashboard_homepage')
+def draw_homepage():
+
+  # Get weather
+  current_weather_dict, forecast_1_period_dict, forecast_period_2_dict, alerts = fetch_weather()
+
+  # Get grocery list
+  grocery_items = {"grocery_list" : fetch_grocery_list()}
+
+  # Get calendar items
+  calendar_items = {"calendar_events" : fetch_calendar_events()}
+
+  final_svg = SVGFile(template_svg_filepath="svg_final.svg", output_filename= "svg_output.svg")
+  final_svg.update_svg(current_weather_dict = current_weather_dict, forecast_1_period_dict = forecast_1_period_dict, 
+                       forecast_period_2_dict = forecast_period_2_dict, grocery_dict = grocery_items, calendar_dict = calendar_items)
+  output = final_svg.send_to_pi()
+  
   return send_file(output, mimetype="image/png")
+
+
+# display image pulled from gmail
+@app.route('/display_gmail_image')
+def api_route_gmail_image():
+
+  return fetch_image_from_gmail()
 
 
 # build the authorization flow
@@ -177,7 +239,7 @@ def authorize():
   if 'token_file' not in flask.session:
     flask.session['token_file'] = TOKEN_FILE_GMAIL
     flask.session['scopes'] = SCOPES_GMAIL
-    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE_GMAIL
+    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
     
   #if we are just testing the auth flow and the credentials are expired, simply refresh them
   if os.path.exists(flask.session['token_file']):
@@ -282,4 +344,5 @@ else:
           return self.app(environ, start_response)
           
   app.wsgi_app = ReverseProxied(app.wsgi_app)
+
 

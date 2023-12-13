@@ -19,10 +19,7 @@ class Image_transform:
         draw = ImageDraw.Draw(canvas)
         
         #use the line below if we're working with a path and not an image file
-        #image = Image.open(self.imported_image)
-        
-        #use the line below if we're working with an image file directly
-        image = self.imported_image
+        image = Image.open(self.imported_image)
 
         #Remove exif orientation
         image = ImageOps.exif_transpose(image)

@@ -8,7 +8,7 @@ import base64
 import re
 
 # class that connects to Gmail and allows you to parse messages
-class Gmail_connector():
+class GmailConnector():
 
     def __init__(self, creds):
         # creds are the credentials used to connect to the gmail API

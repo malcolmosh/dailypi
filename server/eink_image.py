@@ -1,94 +1,58 @@
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-import textwrap
+import cairosvg
+from io import BytesIO
 
 
-
-#function to transform the pic pulled from gmail into a 2 tone & resized image
 class Image_transform:
-    def __init__(self, imported_image, fit="crop", message=""):
-        self.imported_image=imported_image
-        self.message=message
+    def __init__(self, path_or_image):
+        self._path_or_image = path_or_image
+        self._image_file = self.load_image()
 
-    def render(self, fit="crop"):
-        # fit can be "width" or "crop" or "height"
-        #we are using the screen in portrait mode and so flipping the default landscape mode
-        w = 480
-        h = 800
-        
-        #create canvas in portrait mode
-        canvas = Image.new(mode="1", size=(w, h), color=255) #fill colour for blank space (so, clear frame first)
-        draw = ImageDraw.Draw(canvas)
-        
-        #use the line below if we're working with a path and not an image file
-        #image = Image.open(self.imported_image)
-        
-        #use the line below if we're working with an image file directly
-        image = self.imported_image
-
-        #Remove exif orientation
-        image = ImageOps.exif_transpose(image)
-        
-        #option 1 : fit the whole width to the frame
-        if fit=="width":
-            #Resize image to fit width
-            wpercent = (w/float(image.size[0]))
-            hsize = int((float(image.size[1])*float(wpercent)))
-            image = image.resize((w,hsize), Image.ANTIALIAS)
+    def load_image(self):
+        if isinstance(self._path_or_image, str) and self._path_or_image.endswith(".svg"):
+            # Rasterize the SVG to PNG
+            png_image = cairosvg.svg2png(url=self._path_or_image, dpi=300)
+            # Convert PNG bytes data to Image object
+            img = Image.open(BytesIO(png_image))
             
-            #center the image vertically in the middle of the frame
-            blank_space=h-image.size[1]
-            adjust_height=int(blank_space/2)
-            
-            #paste on canvas with height adjustment
-            canvas.paste(image, (0, 0+adjust_height))
+            # Create a white background image
+            white_bg = Image.new("RGBA", img.size, "WHITE")
+            white_bg.paste(img, (0, 0), img)  # The last parameter is the alpha mask for transparency
+            return white_bg.convert("RGB")  # Convert to RGB to remove alpha channel
+        else:
+            # If it's an Image object or another format, return as it is.
+            return self._path_or_image
 
-        #option 2 : fit the whole height to the frame
-        if fit=="height":
-            
-            #Resize image by height
-            hpercent = (h/float(image.size[1]))
-            wsize = int((float(image.size[0])*float(hpercent)))
-            image = image.resize((wsize,h), Image.ANTIALIAS)
-            
-            #center 
-            blank_space=h-image.size[1]
-            adjust_height=int(blank_space/2)
-            #Paste image on canvas
-            canvas.paste(image, (0, 0+adjust_height))
+    def render(self, height, width):
+        # Resize image by height using a crop strategy 
+        canvas = Image.new(mode="1", size=(width, height), color=(255))
+        image = ImageOps.exif_transpose(self._image_file)
 
-        #option 3 : crop the image in the center 
-        if fit=="crop":
-        
-            #Resize image by height
-            hpercent = (h/float(image.size[1]))
-            wsize = int((float(image.size[0])*float(hpercent)))
-            image = image.resize((wsize,h), Image.ANTIALIAS)
-            
-            #Center the image on the frame. First, set overflow
-            left = (image.size[0] - w)/2
-            top = (image.size[1] - h)/2
-            right = (image.size[0] + w)/2
-            bottom = (image.size[1] + h)/2
-            
-            # Crop the center of the image
-            image = image.crop((left, top, right, bottom))
+        hpercent = (height/float(image.size[1]))
+        wsize = int((float(image.size[0])*float(hpercent)))
+        image = image.resize((wsize,height), Image.LANCZOS)
 
-            #Paste image on canvas
-            canvas.paste(image, (0, 0))
-        
-        #print text on top of image
-        #set font
-        font = ImageFont.truetype(os.path.join("./fonts", "Roboto-Medium.ttf"), 25)
-        
-        message = textwrap.fill(self.message,width=25)
-        
-        # Calculate the width and height of rendered text
-        textw, texth = draw.textsize(message, font=font)
-        text_overflow = (w-textw)/2
-    
-        draw.text((0+text_overflow, 0), message, font=font, fill=0, align='center')
-        
-        return(canvas)
+        # Center the image on the frame
+        left = (image.size[0] - width) / 2
+        top = (image.size[1] - height) / 2
+        right = (image.size[0] + width) / 2
+        bottom = (image.size[1] + height) / 2
 
+        # Crop the center of the image
+        image = image.crop((left, top, right, bottom))
 
+        # Paste image on canvas
+        canvas.paste(image, (0, 0))
+
+        return canvas
+
+    def save(self, output_path_or_stream):
+        """
+        Save the rendered image to the specified output path or stream.
+        """
+        if isinstance(self._path_or_image, str) and self._path_or_image.endswith(".svg"): #if we're dealing with an SVG filepath
+            self._image_file.save(output_path_or_stream, format = "PNG")
+        else:
+            final_image = self.render(height=800, width=480) # if we're dealing with an image directly
+            final_image.save(output_path_or_stream, format = "PNG")
