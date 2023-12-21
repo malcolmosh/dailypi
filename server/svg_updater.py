@@ -28,7 +28,7 @@ class SVGFile:
             "forecast": self.handle_forecast,
             "uv_index": self.handle_uv_index,
             "temp_type": self.handle_temp_type,
-            "icon": self.handle_icon_code,
+            "weather_icon": self.handle_icon_code,
             "default_replace_text" : self.handle_text_element
         }
                 
@@ -37,7 +37,7 @@ class SVGFile:
             # In each dict, iterate through every key in the dictionary (these are items we want to replace)
             for key, value in every_dict.items():
                 # If there is a special SVG replacement logic for the key value, look it up in our dictionary of actions
-                trimmed_key = key.replace("period1_", "").replace("period2_", "").replace("current_", "") # trim any prefix in the key
+                trimmed_key = re.sub(r'(period0_|period1_|period2_)', '', key) # trim any prefix in the key
                 action = actions_dict.get(trimmed_key, actions_dict["default_replace_text"])
                 action(index, key, value) # run action on original key
 
@@ -129,7 +129,7 @@ class SVGFile:
                 self.replace_text_with_proper_width(text_element = text_element, new_text = new_text, max_width = max_width, line_height_for_spacing = line_height_for_spacing, max_lines = max_lines)
 
     def handle_grocery(self, index, key, value):
-        self.handle_text_element(index, key, value, self.convert_to_clean_bullet_points, max_width = 17, line_height_for_spacing = 25, max_lines = 12)
+        self.handle_text_element(index, key, value, self.convert_to_clean_bullet_points, max_width = 16, line_height_for_spacing = 25, max_lines = 12)
 
     def handle_calendar(self, index, key, value):
         self.handle_text_element(index, key, value, self.extract_event_strings,  max_width = 17, line_height_for_spacing = 25, max_lines = 12)
@@ -171,8 +171,8 @@ class SVGFile:
 
     def handle_icon_code(self, index, key, value):
         icon_to_reveal = self.get_icon_name(value)
-        id_of_icon = icon_to_reveal + str(index) if index > 0 else icon_to_reveal #main weather icons have no suffix (no '..._1' or '..._2')
-        list_of_shapes = self.find_group_of_shapes(group_name=f"Forecast_{index}_icons")
+        id_of_icon = icon_to_reveal + str(index) if index > 0 else icon_to_reveal #main weather icons ids in the svg file have no suffix (no '..._1' or '..._2')
+        list_of_shapes = self.find_group_of_shapes(group_name=key)
         for shape in list_of_shapes: 
             shape_id = shape.attrib.get("id")
             if shape_id == id_of_icon:

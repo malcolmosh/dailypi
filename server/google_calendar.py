@@ -64,24 +64,22 @@ class GCalConnector:
         # Cycle through events and assign them to days
         for event in events: 
             event_start_time, event_end_time = self._get_event_start_and_end(event)
-
             # if the start time is before the end of today, add it to today's events
-            if event_start_time.date() <= self.today:
-                events_by_day[self.today].append("•\u00A0"+event.get("summary"))
-            
             # else if the start time is greater than today, add it to tomorrow's events (since we are only retrieving 2 days)
-            else :
-                events_by_day[self.tomorrow].append("•\u00A0"+event.get("summary"))
+            day = self.today if event_start_time.date() <= self.today else self.tomorrow
+            events_by_day[day].append("•\u00A0"+event.get("summary"))
         
         return events_by_day
     
     def _format_event_list(self, events_by_day):
         # Output a list with all day names and events
         event_list = []
-        event_list.append("Aujourd'hui:")
-        event_list.extend(events_by_day[self.today])
-        event_list.append("Demain:")
-        event_list.extend(events_by_day[self.tomorrow])
+        if events_by_day.get(self.today):
+            event_list.append("Aujourd'hui:")
+            event_list.extend(events_by_day[self.today])
+        if events_by_day.get(self.tomorrow):
+            event_list.append("Demain:")
+            event_list.extend(events_by_day[self.tomorrow])
         return event_list
 
     

@@ -64,12 +64,12 @@ class GetEnviroCanWeather:
 
     def _format_current_period(self, conditions: Dict, aqi: str) -> Dict:
         return {
-            "current_temp": self._format_number(int(round(conditions["temperature"]["value"], 0)), TEMP_SUFFIX),
-            "current_humidex": self._format_number(conditions["humidex"]["value"], TEMP_SUFFIX),
-            "current_humidity": self._format_number(conditions["humidity"]["value"], PRECIP_SUFFIX),
-            "current_uv_index": conditions["uv_index"]["value"],
-            "current_icon_code": int(conditions["icon_code"]["value"]),
-            "current_aqi": aqi or "0"
+            "period0_temp": self._format_number(int(round(conditions["temperature"]["value"], 0)), TEMP_SUFFIX),
+            "period0_humidex": self._format_number(conditions["humidex"]["value"], TEMP_SUFFIX),
+            "period0_humidity": self._format_number(conditions["humidity"]["value"], PRECIP_SUFFIX),
+            "period0_uv_index": conditions["uv_index"]["value"],
+            "period0_weather_icon": int(conditions["icon_code"]["value"]),
+            "period0_aqi": aqi or "0"
         }
 
     def _format_future_period(self, forecast: Dict, aqi_forecast_item: Tuple, dict_num: int) -> Dict:
@@ -79,7 +79,7 @@ class GetEnviroCanWeather:
             f"period{dict_num}_forecast": forecast["text_summary"],
             f"period{dict_num}_temp": self._format_number(forecast["temperature"], TEMP_SUFFIX),
             f"period{dict_num}_temp_type": forecast["temperature_class"],
-            f"period{dict_num}_icon_code": int(forecast['icon_code']),
+            f"period{dict_num}_weather_icon": int(forecast['icon_code']),
             f"period{dict_num}_precip": self._format_number(forecast["precip_probability"], PRECIP_SUFFIX),
             "aqi_next_period": str(aqi_value),
         }

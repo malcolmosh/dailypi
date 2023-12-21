@@ -12,6 +12,7 @@ server/fonts/
 server/old/
 install guide.txt
 .devcontainer/
+*TOKEN*
 
 # Distribution / packaging
 .DS_Store

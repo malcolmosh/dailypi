@@ -1,5 +1,6 @@
 pybase64
 gunicorn
+python-dotenv
 Requests==2.29.0
 Flask==2.2.2
 Werkzeug>=2.2,<3.0
@@ -15,6 +16,7 @@ cairosvg == 2.7.1
 tinycss == 0.4
 cssselect == 1.2.0
 timezonefinder == 6.2.0
+
 # # to use cairosvg on windows
 # pip install pipwin
 # pipwin install cairocffi

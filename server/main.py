@@ -18,6 +18,8 @@ import json
 import datetime
 from io import BytesIO
 from itertools import islice
+from dotenv import load_dotenv
+import ast
 
 #google libraries
 import google_auth_oauthlib.flow
@@ -33,56 +35,41 @@ from svg_updater import SVGFile
 from get_weather import GetEnviroCanWeather
 from google_tasks import GtasksConnector
 
-##SECRETS  - change the file paths as needed
+# Get the absolute path of the directory of the current script
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
-#Path to your API credentials file
-CLIENT_SECRETS_FILE = "secrets/api_credentials.json"
-#Path to your API Access token file
-TOKEN_FILE_GMAIL = 'secrets/token_gmail.json'
-TOKEN_FILE_GTASKS = 'secrets/token_gtasks.json'
-TOKEN_FILE_GCALENDAR = 'secrets/token_gcalendar.json'
+# Load environment variables in .env file
+load_dotenv()
 
-# Import ENV variables
-# Load JSON data from a file
-with open('secrets/config.json', 'r', encoding='utf-8') as file:
-    config_data = json.load(file)
+# Env variables
+SERVICE_ACCOUNT_CREDENTIALS = os.getenv("SERVICE_ACCOUNT_CREDENTIALS")
+FLASK_KEY = os.getenv("FLASK_KEY")
+SCOPES_GMAIL = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES_GTASKS = ["https://www.googleapis.com/auth/tasks.readonly"]
+SCOPES_GCALENDAR = ["https://www.googleapis.com/auth/calendar.readonly"]
+WEATHER_COORDINATES = ast.literal_eval(os.getenv("WEATHER_COORDINATES"))
+GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
+GOOGLE_TASKS_LIST_ID = os.getenv("GOOGLE_TASKS_LIST_ID")
 
-# Extract variables
-GOOGLE_TASKS_LIST_ID = config_data.get('GOOGLE_TASKS_LIST_ID')
-GOOGLE_CALENDAR_ID = config_data.get('GOOGLE_CALENDAR_ID')
-SCOPES_GMAIL = config_data.get('SCOPES', {}).get('GMAIL', ['https://www.googleapis.com/auth/gmail.readonly'])
-SCOPES_GTASKS = config_data.get('SCOPES', {}).get('GTASKS', ['https://www.googleapis.com/auth/tasks.readonly'])
-SCOPES_GCALENDAR = config_data.get('SCOPES', {}).get('GCALENDAR', ['https://www.googleapis.com/auth/calendar.readonly'])
-
-
-# Extract the coordinate string, split it by comma, and convert each part to float
-coord_string = config_data.get('WEATHER_COORDINATES', '0.0, 0.0')
-try:
-    latitude, longitude = map(float, coord_string.split(','))
-    WEATHER_COORDINATES = (latitude, longitude)
-except ValueError:
-    raise ValueError("Invalid format for WEATHER_COORDINATES. Must be two float values separated by a comma.")
-
-##AUTH
-
-# This OAuth 2.0 access scope allows to read emails
-SCOPES_GMAIL = ['https://www.googleapis.com/auth/gmail.readonly']
-SCOPES_GTASKS = ['https://www.googleapis.com/auth/tasks.readonly']
-SCOPES_GCALENDAR = ['https://www.googleapis.com/auth/calendar.readonly']
+# Tokens for Google services
+TOKEN_GMAIL = os.getenv("TOKEN_GMAIL")
+TOKEN_GTASKS = os.getenv("TOKEN_GTASKS")
+TOKEN_GCALENDAR = os.getenv("TOKEN_GCALENDAR")
 
 ## FLASK APP
 app = flask.Flask(__name__)
-app.secret_key= config_data.get('FLASK_KEY', '101')
+app.secret_key= FLASK_KEY
 
 ## FUNCTIONS
 
 def fetch_grocery_list():
-    if os.path.exists(TOKEN_FILE_GTASKS):
-        credentials = generate_credentials(token_file=TOKEN_FILE_GTASKS, scopes=SCOPES_GTASKS)
+    flask.session['service_name'] = 'GTASKS'
+    # refresh token if it exists
+    if TOKEN_GTASKS:
+        credentials = generate_credentials(token_as_json=TOKEN_GTASKS, scopes=SCOPES_GTASKS)
     else:
-        flask.session['token_file'] = TOKEN_FILE_GTASKS
         flask.session['scopes'] = SCOPES_GTASKS
-        flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
+        flask.session["client_secret_file"] = SERVICE_ACCOUNT_CREDENTIALS
         return flask.redirect('authorize')
     
     Google_tasks = GtasksConnector(creds=credentials)
@@ -93,16 +80,16 @@ def fetch_grocery_list():
 
 
 def fetch_image_from_gmail():
+  flask.session['service_name'] = 'GMAIL'
   #update refresh token if we have a token file
-  if os.path.exists(TOKEN_FILE_GMAIL):
-    credentials = generate_credentials(token_file=TOKEN_FILE_GMAIL, scopes=SCOPES_GMAIL)
+  if TOKEN_GMAIL:
+    credentials = generate_credentials(token_as_json=TOKEN_GMAIL, scopes=SCOPES_GMAIL)
   
   #if there are no credentials, redirect to the authorization flow 
   else:
     # keep the current token file and scopes in session memory
-    flask.session['token_file'] = TOKEN_FILE_GMAIL
     flask.session['scopes'] = SCOPES_GMAIL
-    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
+    flask.session["client_secret_file"] = SERVICE_ACCOUNT_CREDENTIALS
     return flask.redirect('authorize')
 
   # initialize Gmail connector
@@ -131,13 +118,12 @@ def fetch_weather():
   return weather_service.get_curr_weather_and_two_next_periods()
 
 def fetch_calendar_events():
-
-  if os.path.exists(TOKEN_FILE_GCALENDAR):
-      credentials = generate_credentials(token_file=TOKEN_FILE_GCALENDAR, scopes=SCOPES_GCALENDAR)
+  flask.session['service_name'] = "GCALENDAR"
+  if TOKEN_GCALENDAR:
+      credentials = generate_credentials(token_as_json=TOKEN_GCALENDAR, scopes=SCOPES_GCALENDAR)
   else:
-      flask.session['token_file'] = TOKEN_FILE_GCALENDAR
       flask.session['scopes'] = SCOPES_GCALENDAR
-      flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
+      flask.session["client_secret_file"] = SERVICE_ACCOUNT_CREDENTIALS
       return flask.redirect('authorize')
   
   weather_service = GetEnviroCanWeather(WEATHER_COORDINATES)   # Get local timezone from weather service
@@ -149,16 +135,20 @@ def fetch_calendar_events():
   return google_calendar.get_calendar_events()
 
 
-def generate_credentials(token_file, scopes):
+def generate_credentials(token_as_json, scopes):
   #if there are stored credentials, retrieve them
-  credentials = Credentials.from_authorized_user_file(token_file, scopes)
+  print("SCOPES USED", scopes)
+  
+  token_contents = json.loads(token_as_json)
+  credentials = Credentials.from_authorized_user_info(token_contents, scopes)
   
   #if credentials are expired, refresh
   if not credentials.valid:
     credentials.refresh(Request())
 
     #Save credentials to file if they were refreshed 
-    with open(token_file, 'w') as token:
+    token_name = "TOKEN_"+flask.session['service_name']
+    with open(token_name + ".json", 'w') as token:
       token.write(credentials.to_json())
 
   return credentials
@@ -216,7 +206,7 @@ def draw_homepage():
   # Get calendar items
   calendar_items = {"calendar_events" : fetch_calendar_events()}
 
-  final_svg = SVGFile(template_svg_filepath="svg_final.svg", output_filename= "svg_output.svg")
+  final_svg = SVGFile(template_svg_filepath=os.path.join(dir_path, "svg_final.svg"), output_filename= os.path.join(dir_path, "svg_output.svg"))
   final_svg.update_svg(current_weather_dict = current_weather_dict, forecast_1_period_dict = forecast_1_period_dict, 
                        forecast_period_2_dict = forecast_period_2_dict, grocery_dict = grocery_items, calendar_dict = calendar_items)
   output = final_svg.send_to_pi()
@@ -237,27 +227,25 @@ def authorize():
 
   # if no token file stored in session, assume we are testing gmail
   if 'token_file' not in flask.session:
-    flask.session['token_file'] = TOKEN_FILE_GMAIL
+    flask.session['service_name'] = 'GMAIL'
     flask.session['scopes'] = SCOPES_GMAIL
-    flask.session["client_secret_file"] = CLIENT_SECRETS_FILE
+    flask.session["client_secret_file"] = SERVICE_ACCOUNT_CREDENTIALS
     
   #if we are just testing the auth flow and the credentials are expired, simply refresh them
-  if os.path.exists(flask.session['token_file']):
-      credentials = Credentials.from_authorized_user_file(flask.session['token_file'], flask.session['scopes'])
-      if not credentials.valid:
-          credentials.refresh(Request())
-
-          #Save credentials to file if they were refreshed
-          with open(flask.session['token_file'], 'w') as token:
-              token.write(credentials.to_json())
+  token_name = "TOKEN_"+flask.session['service_name']
+  if os.getenv(token_name):
+      credentials = generate_credentials(token_as_json=os.getenv(token_name), scopes=flask.session['scopes'])
 
       return flask.redirect(flask.url_for('index'))
     
   #otherwise fetch the full creds
   else: 
       # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
-      flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-          flask.session["client_secret_file"], scopes=flask.session["scopes"])
+      # Parse the JSON string to a dictionary
+      client_config = json.loads(flask.session["client_secret_file"])
+
+      flow = google_auth_oauthlib.flow.Flow.from_client_config(
+          client_config, scopes=flask.session["scopes"])
 
       # The URI created here must exactly match one of the authorized redirect URIs
       # for the OAuth 2.0 client, which you configured in the API Console. If this
@@ -284,8 +272,10 @@ def oauth2callback():
   # verified in the authorization server response.
   state = flask.session['state']
 
-  flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-      flask.session["client_secret_file"], scopes=flask.session["scopes"], state=state)
+  config_file = json.loads(flask.session["client_secret_file"])
+
+  flow = google_auth_oauthlib.flow.Flow.from_client_config(
+     config_file, scopes=flask.session["scopes"], state=state)
   flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
   # Use the authorization server's response to fetch the OAuth 2.0 tokens.
@@ -296,8 +286,8 @@ def oauth2callback():
   credentials = flow.credentials
  
   #save the credentials to file
-  with open(flask.session['token_file'], 'w') as token:
-      token.write(credentials.to_json())
+  token_name = "TOKEN_"+flask.session['service_name']
+  credentials = generate_credentials(token_as_json=credentials.to_json(), scopes=flask.session['scopes'])
 
   return flask.redirect(flask.url_for('index'))
 
@@ -306,7 +296,10 @@ def oauth2callback():
 @app.route('/revoke')
 def revoke():
 
-  credentials = Credentials.from_authorized_user_file(flask.session['token_file'], flask.session['scopes'])
+  token_name = "TOKEN_"+flask.session['service_name']
+  token_contents = json.loads(os.getenv(token_name))
+
+  credentials = Credentials.from_authorized_user_info(token_contents, flask.session['scopes'])
 
   revoke = requests.post('https://oauth2.googleapis.com/revoke',
       params={'token': credentials.token},
