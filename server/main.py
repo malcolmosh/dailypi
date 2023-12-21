@@ -137,8 +137,7 @@ def fetch_calendar_events():
 
 def generate_credentials(token_as_json, scopes):
   #if there are stored credentials, retrieve them
-  print("SCOPES USED", scopes)
-  
+
   token_contents = json.loads(token_as_json)
   credentials = Credentials.from_authorized_user_info(token_contents, scopes)
   

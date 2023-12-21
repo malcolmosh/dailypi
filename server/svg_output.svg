@@ -28,8 +28,8 @@
 	<rect id="frame_calendar_fg" x="613.5" y="139" class="st0" width="175" height="325"/>
 </g>
 
-<text id="current_date" x="400" y="31" text-anchor="middle" class="font-reg main_title font-bold">Jeudi 21 dã©cembre 2023, 16:05</text>
-<text id="current_temp" transform="matrix(1 0 0 1 461.7501 115)" class="font-reg temp-font">31°C</text>
+<text id="current_date" x="400" y="31" text-anchor="middle" class="font-reg main_title font-bold">Jeudi 21 dã©cembre 2023, 16:16</text>
+<text id="period0_temp" transform="matrix(1 0 0 1 461.7501 115)" class="font-reg temp-font">-5°C</text>
 <text id="sunrise" transform="matrix(1 0 0 1 440.6053 185.1628)" class="font-reg sun-fonts font-bold">07:31</text>
 <text id="sunset" transform="matrix(1 0 0 1 546.8005 185.5837)" class="font-reg sun-fonts font-bold">16:13</text>
 <text id="period1_title" transform="matrix(1 0 0 1 203.6151 225)" class="font-reg st5 font-bold">Ce soir et cette nuit</text>
