@@ -84,8 +84,15 @@ class GCalConnector:
 
     
     def _get_event_start_and_end(self, event):
-        start_time = parser.parse(event["start"].get("dateTime", "date"))
-        end_time = parser.parse(event["end"].get("dateTime", "date"))
+        # Convert string to datetime.datetime objects (https://dateutil.readthedocs.io/en/stable/parser.html)
+
+        if event['start'].get('dateTime'):
+            start_time = parser.isoparse(event["start"].get("dateTime", "date"))
+            end_time = parser.isoparse(event["end"].get("dateTime", "date")) 
+
+        elif event['start'].get('date'):
+            start_time = datetime.strptime(event["start"].get("date"), "%Y-%m-%d")
+            end_time = datetime.strptime(event["end"].get("date"), "%Y-%m-%d")
 
         return start_time, end_time
 

@@ -5,7 +5,7 @@ import textwrap
 
 #function to transform the pic pulled from gmail into a 2 tone & resized image
 class Image_transform:
-    def __init__(self, imported_image, fit="crop"):
+    def __init__(self, imported_image):
         self.imported_image=imported_image
 
     def render(self, fit="crop"):

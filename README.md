@@ -1,6 +1,13 @@
 # dispatchPi
 ## A communicating e-paper picture frame, powered by a Raspberry Pi Zero
 
+
+
+# Add section about cloud build trigger
+
+# Add description of ENV variables
+- store in secrets manager....
+
 <img src="https://i.imgur.com/E302Bw2.jpg|width=100px" width="200">
 
 **[Follow the complete tutorial here!](https://malcolmosh.github.io/pages/DispatchPi/dispatchpi_part0/)

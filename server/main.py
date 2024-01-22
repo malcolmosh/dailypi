@@ -205,7 +205,7 @@ def draw_homepage():
   # Get calendar items
   calendar_items = {"calendar_events" : fetch_calendar_events()}
 
-  final_svg = SVGFile(template_svg_filepath=os.path.join(dir_path, "svg_final.svg"), output_filename= os.path.join(dir_path, "svg_output.svg"))
+  final_svg = SVGFile(template_svg_filepath=os.path.join(dir_path, "svg_template.svg"), output_filename= os.path.join(dir_path, "svg_output.svg"))
   final_svg.update_svg(current_weather_dict = current_weather_dict, forecast_1_period_dict = forecast_1_period_dict, 
                        forecast_period_2_dict = forecast_period_2_dict, grocery_dict = grocery_items, calendar_dict = calendar_items)
   output = final_svg.send_to_pi()

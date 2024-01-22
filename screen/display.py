@@ -5,11 +5,15 @@ from waveshare_epd import epd7in5_V2
 from PIL import Image, ImageFont, ImageDraw
 from pisugar import *
 import datetime
+from pathlib import Path
 
 import glob, random
 
 #import local functions
 from image_transform_local import Image_transform
+
+# find script directory
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 #function to display image
 def show_image(image):
@@ -68,30 +72,21 @@ except Exception as e:
     local_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"Exception occurred at {local_datetime}, printing local image instead : {e}")
 
-    #set the directory
-    script_dir = os.path.dirname(os.path.realpath(__file__))
 
-    #set the filetypes to pick from (here png and jpg)
-    png_files = os.path.join(script_dir, "pics", "*.png")
-    jpg_files = os.path.join(script_dir, "pics", "*.jpg")
-    file_path_type = [png_files, jpg_files]
+    pic_path = os.path.join(dir_path, "pics")
+    
+    file_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.JPG', '.JPEG', '.PNG', '.BMP', '.GIF'] # create a sect of file extensions
+    
+    all_images = [p.resolve() for p in Path(pic_path).glob("**/*") if p.suffix in file_extensions]  # Find all matching files for the given patterns in all subfolders of pic_path
 
-    # Get list of all PNG and JPG images
-    png_images = glob.glob(png_files)
-    jpg_images = glob.glob(jpg_files)
+    if not all_images:
+        raise ValueError("No images found in the local directory. Check that your folder contains all your file types specified.")
 
-    # Combine both lists
-    images = png_images + jpg_images
+    #choose a random image path
+    random_image = random.choice(all_images)
 
-    # Check if images list is empty
-    if not images:
-        print(f"Oops at {local_datetime} : No local images found!")
-    else:
-        # Choose a random image path
-        random_image = random.choice(images)
-        #run the local function to process and display it
-        local_image=Image_transform(imported_image=random_image)
-        image=local_image.render(fit="crop")
-        show_image(image)
-
+    #run the local function to process and display it
+    local_image=Image_transform(imported_image=random_image)
+    image=local_image.render(fit="crop")
+    show_image(image)
 
