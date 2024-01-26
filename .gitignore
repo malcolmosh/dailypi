@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Formatted svg output file
+# Formatted svg output files
 *svg_output*
 
 # C extensions

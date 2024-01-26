@@ -46,6 +46,7 @@ set_alarm() {
 }
 
 rtc_time=$(echo "get rtc_time" | nc -q 0 127.0.0.1 8423)
+
 if [[ x"$rtc_time" =~ "rtc_time:" ]]; then
     rtc_time=${rtc_time#*" "}
     rtc_date=$(date -d "$rtc_time" +%Y-%m-%d)

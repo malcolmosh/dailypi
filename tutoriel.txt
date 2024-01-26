@@ -1,0 +1,39 @@
+
+0 - What it is 
+
+	Dashboard that displays events, grocery list and weather
+	Runs on a Raspberry Pi Zero W. Some adaptation may be necessary to convert to other boards. Waveshare 7.5 " e-ink screen (black and white). 
+	Through API calls to Google Calendar & Google Tasks, as well as through a python library to pull environment canada weather conditions and forecasts
+	Pretty modular since the template is a SVG file.
+	The SVG file serves as the graphical canvas. Since a SVG file can be explored in code, specific elements are swapped out and updated.   
+	Connected to a PiSugar battery. With three daily refreshes of 3 minutes, lasts about 2 weeks. You could also just plug it permanently. Uses little power. 
+	Weather icons from X library matched to Environment Canada weather icons (low res)
+
+1 - Local app
+	parameters to tune : 
+		build token files
+		select coordinates
+		tinker with language
+
+	editing the svg template was fussy. use boxysvg to preserve class names
+	the layer names in the svg are used in the svg updater script
+
+	secrets management : everything works through the .env file
+
+2 - Deploy it
+	via a github integration with cloud run 
+	means that you can easily correct the app on the go without fiddling with the CLI 
+	secrets management : add secrets to your gcloud environment
+
+
+3 - Raspberry Pi
+	Works with PiSugar 2 battery (https://www.pisugar.com/)
+
+	Script to wake up the raspberry Pi at specific moments and run a script on startup
+	Try to pull dashboard from URL
+	Otherwise display local image
+	
+
+Disable bluetooth : https://di-marco.net/blog/it/2020-04-18-tips-disabling_bluetooth_on_raspberry_pi/
+
+Bad practice sudo in shell script... but it works. 
