@@ -59,10 +59,17 @@ app.secret_key= FLASK_KEY
 
 ## FUNCTIONS
 
-def refresh_token(token_name):
-  credentials = Credentials.from_authorized_user_info(
-  json.loads(flask.session[token_name])
-)
+def refresh_token(token_name : str, from_session : bool):
+
+  if from_session:
+    credentials = Credentials.from_authorized_user_info(
+    json.loads(flask.session[token_name])
+  )
+    
+  elif from_session==False:
+    credentials = Credentials.from_authorized_user_info(
+    json.loads(os.getenv(token_name))
+  )
 
   if not credentials.valid:
     print("credentials not valid, refreshing")
@@ -82,14 +89,14 @@ def auth_flow():
   # first check if we have a credential stored in the flask session
   if token_name in flask.session:
     print(f"{token_name} found in session")
-    credentials = refresh_token(token_name)
+    credentials = refresh_token(token_name = token_name, from_session = True)
     return credentials
 
   # otherwise check if we have anything in the env file
   elif token_from_env:
     print(f"{token_name} found in env")
 
-    credentials = refresh_token(token_name)
+    credentials = refresh_token(token_name=token_name, from_session = False)
     return credentials
 
    # otherwise generate credentials from scratch
