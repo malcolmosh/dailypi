@@ -1,20 +1,8 @@
-# dispatchPi
-## A communicating e-paper picture frame, powered by a Raspberry Pi Zero
+# infoPi
+## A simple e-paper dashboard, powered by a Raspberry Pi Zero
 
+DailyPi is a straightforward home dashboard that shows daily tasks, events and weather on a 7.5 inch e-paper screen. All of the data preparation is conducted server-side, through a web app hosted on Google Cloud Run, which collects information from all relevant APIs and outputs a PNG image at a fixed URL. The local device is composed of a a Raspberry Pi zero W computer physically wired to an e-ink screen. The Pi's task is to regurlarly pull the dasbhoard PNG via Wifi and push it instantly to the display.
 
+<img src="/blog/2024/infopi-tutorial/|width=500px" width="500">
 
-# Add section about cloud build trigger
-
-# Add description of ENV variables
-- store in secrets manager....
-
-<img src="https://i.imgur.com/E302Bw2.jpg|width=100px" width="200">
-
-**[Follow the complete tutorial here!](https://malcolmosh.github.io/pages/DispatchPi/dispatchpi_part0/)
-
-The frame's job is to display an image from a fixed URL at specific intervals. There is a Flask app hosted at this address. Whenever it is pinged, it pulls the latest image received in a Gmail inbox, with the help of the Gmail API and Auth 2.0.
-
-There are two folders to browse here:
-
-- **Screen** contains the code found on the Raspberry Pi device
-- **Server** holds the code hosted online in a dockerized Flask app 
+**[Follow the complete tutorial here!](https://malcolmosh.github.io/blog/2024/infopi-tutorial/)
