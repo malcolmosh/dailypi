@@ -1,9 +1,10 @@
 #!/bin/bash
+# This is a Bash script designed to schedule a dynamic wakeup time on a Raspberry Pi Zero W connected to a PiSugar2 battery
 
 set -e
 
 # Shutdown after n seconds
-SHUTDOWN_AFTER=180
+SHUTDOWN_AFTER=120
 
 # URL to ping to check network
 URL="www.google.com"
@@ -66,8 +67,8 @@ fi
 
 if (( current_hour < 6 )); then
     next_alarm="${rtc_date}T06:02:00${timezone_offset}"
-elif (( current_hour < 12 )); then
-    next_alarm="${rtc_date}T12:02:00${timezone_offset}"
+# elif (( current_hour < 12 )); then
+#     next_alarm="${rtc_date}T12:02:00${timezone_offset}"
 elif (( current_hour < 20 )); then
     next_alarm="${rtc_date}T20:02:00${timezone_offset}"
 else
