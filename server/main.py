@@ -9,7 +9,6 @@ import flask
 from flask import send_file
 import requests
 import json
-import datetime
 from io import BytesIO
 from itertools import islice
 from dotenv import load_dotenv
@@ -72,7 +71,7 @@ def refresh_token(token_name : str, from_session : bool):
   )
 
   if not credentials.valid:
-    print("credentials not valid, refreshing")
+    print(f"{flask.session['service_name']} credentials not valid, refreshing")
 
     credentials.refresh(Request())
 
@@ -236,7 +235,6 @@ def weather_output():
   current_weather, forecast_period_1, forecast_period_2, alerts = fetch_weather()
     
   return(f'{current_weather, forecast_period_1, forecast_period_2, alerts}')
-  # return(f'{pretty_output}')
 
 # display dashboard homepage
 @app.route('/dashboard_homepage')
@@ -270,18 +268,18 @@ def api_route_gmail_image():
 @app.route('/authorize')
 def authorize():
 
-  # if no service name stored in session, assume we are testing gmail
+  # if no service name is stored in session, assume we are testing gmail
   if 'service_name' not in flask.session:
     flask.session['service_name'] = 'GMAIL'
     flask.session['scopes'] = SCOPES_GMAIL
     
-  #if we are just testing the auth flow
+  # first try to get credentials in the flask session or in our env file
   credentials = auth_flow()
 
   if credentials:    
       return flask.redirect(flask.url_for('index'))
     
-  #otherwise fetch the full creds
+  # if there are none, generate credentials
   elif not credentials: 
       # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
 
@@ -315,8 +313,6 @@ def oauth2callback():
   # Specify the state when creating the flow in the callback so that it can
   # verified in the authorization server response.
   state = flask.session['state']
-
-  print(CLIENT_SECRETS_FILE)
 
   config_file = json.loads(CLIENT_SECRETS_FILE)
 

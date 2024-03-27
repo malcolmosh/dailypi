@@ -1,13 +1,13 @@
 import os
-#import sys
+import sys
 import requests
 from waveshare_epd import epd7in5_V2
 from PIL import Image, ImageFont, ImageDraw
-from pisugar import *
 import datetime
+import re
 from pathlib import Path
 
-import glob, random
+import random
 
 #import local functions
 from image_transform_local import Image_transform
@@ -33,15 +33,16 @@ def show_image(image):
 
 def get_battery_percentage():
     try : 
-        # get battery percentage
-        conn, event_conn = connect_tcp('newframe.local')
-        s = PiSugarServer(conn, event_conn)
-        battery_percentage = str(round(s.get_battery_level()))
-        local_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print(f"Battery_percentage at {local_datetime} was {battery_percentage}") # print percentage with date for logs
+        # capture input from command line
+        battery_percentage_str = sys.argv[1]
+
+        # Extract the number from the string
+        battery_percentage = re.findall(r'[0-9]+', battery_percentage_str)[0]
+    
         return battery_percentage
+    
     except: 
-         return "XX"
+         return "??"
 
 
 try:
