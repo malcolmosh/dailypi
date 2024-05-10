@@ -274,12 +274,15 @@ def authorize():
     flask.session['scopes'] = SCOPES_GMAIL
     
   # first try to get credentials in the flask session or in our env file
-  credentials = auth_flow()
+  try: 
+    credentials = auth_flow()
+  except RefreshError:
+      return (f"The crendentials could not be refreshed... try removing them from the env file and restarting the auth flow again.<br><br>"
+      "<a href='/'><button>Return to Index</button></a>")
 
   if credentials:    
       return flask.redirect(flask.url_for('index'))
-    
-  # if there are none, generate credentials
+       
   elif not credentials: 
       # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
 
