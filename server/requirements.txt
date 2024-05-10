@@ -3,7 +3,6 @@ gunicorn
 python-dotenv
 Requests==2.29.0
 Flask==2.2.2
-Werkzeug==3.03
 pillow>=10.3.0
 google-api-python-client
 google-auth
