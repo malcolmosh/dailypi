@@ -34,7 +34,7 @@ class GetEnviroCanWeather:
 
         # Pull weather data from Environment Canada Weather website
         curr_conditions, forecast, curr_aqi, air_quality_next, alerts = self.ec_weather.conditions, self.ec_weather.daily_forecasts, self.ec_air_quality.current, self.ec_air_quality.forecasts, self.ec_weather.alerts
-        
+
         # Get AQI only for next 2 periosd (first 2 items in dict)
         aqi_forecast_next_2_periods = list(islice(air_quality_next["daily"].items(), 2))
     
@@ -45,8 +45,8 @@ class GetEnviroCanWeather:
         return (
             {**current, 
             "current_date": self.get_local_time().strftime('%A %d %B %Y, %H:%M').capitalize(),
-            "sunrise": self.utc_to_local(self.get_sunrise()),
-            "sunset": self.utc_to_local(self.get_sunset())
+            "sunrise": self.get_sunrise(),
+            "sunset": self.get_sunset()
             },
             period_1,
             period_2,
@@ -63,6 +63,15 @@ class GetEnviroCanWeather:
         return list_of_notices
 
     def _format_current_period(self, conditions: Dict, aqi: str) -> Dict:
+        if not conditions:
+            return {
+                "period0_temp": "N/A",
+                "period0_humidex": "N/A",
+                "period0_humidity": "N/A",
+                "period0_uv_index": "N/A",
+                "period0_weather_icon": 0,
+                "period0_aqi": "N/A"
+            }
         return {
             "period0_temp": self._format_number(int(round(conditions["temperature"]["value"], 0)), TEMP_SUFFIX),
             "period0_humidex": self._format_number(conditions["humidex"]["value"], TEMP_SUFFIX),
@@ -100,13 +109,17 @@ class GetEnviroCanWeather:
         return local_time
     
     def get_sunrise(self):
-        sunrise = self.ec_weather.conditions['sunrise']['value']
-        return sunrise
+        try:
+            return self.utc_to_local(self.ec_weather.conditions['sunrise']['value'])
+        except:
+            return "N/A"
         
     def get_sunset(self):
-        sunset = self.ec_weather.conditions['sunset']['value']
-        return sunset
-    
+        try:
+            return self.utc_to_local(self.ec_weather.conditions['sunset']['value'])
+        except:
+            return "N/A"
+
     def utc_to_local(self, utc_dt):
         # Check if utc_dt is a valid datetime object
         if utc_dt is None or not isinstance(utc_dt, datetime.datetime):
