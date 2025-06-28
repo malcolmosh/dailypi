@@ -8,7 +8,7 @@ google-api-python-client
 google-auth
 google-auth-httplib2
 google-auth-oauthlib==1.0.0
-env_canada == 0.7.2
+env_canada == 0.11.2
 babel == 2.12.1
 pycairo == 1.24.0
 cairosvg == 2.7.1
@@ -18,4 +18,4 @@ timezonefinder == 6.2.0
 
 # # to use cairosvg on windows
 # pip install pipwin
-# pipwin install cairocffi
+# pipwin install cairo
