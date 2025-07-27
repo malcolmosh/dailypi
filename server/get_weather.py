@@ -1,138 +1,147 @@
 import asyncio
 import datetime
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from env_canada import ECWeather, ECAirQuality
-import os
 import pytz
 import locale
-from itertools import islice
 from timezonefinder import TimezoneFinder
 
-TEMP_SUFFIX = "°C"
-PRECIP_SUFFIX = "%"
-
-class GetEnviroCanWeather:
-
+class GetEnviroCanWeather:   
     def __init__(self, coordinates: Tuple[float, float], language='french', aq_language='FR'):
         self.coordinates = coordinates
         self.ec_weather = ECWeather(coordinates=coordinates, language=language)
         self.ec_air_quality = ECAirQuality(coordinates=coordinates, language=aq_language)
         locale.setlocale(locale.LC_TIME, 'fr_CA.UTF-8')
+        
+        # Cache timezone
+        self._timezone = self._get_timezone()
 
-    async def _update_data(self):
+    async def _fetch_weather_data(self):
         await self.ec_weather.update()
         await self.ec_air_quality.update()
 
-    def _capitalize(self, string: str) -> str:
-        return string[0].upper() + string[1:]
+    def get_weather_data(self) -> Dict:
+        # Fetch fresh data
+        asyncio.run(self._fetch_weather_data())
+        
+        # Extract and format data
+        current_weather = self._format_current_weather()
+        next_periods = self._format_forecast_periods()
+        weather_alerts = self._format_alerts()
+        
+        return {
+            "current": current_weather,
+            "period_1": next_periods[0] if next_periods else {},
+            "period_2": next_periods[1] if len(next_periods) > 1 else {},
+            "alerts": weather_alerts
+        }
 
-    def _format_number(self, number: str, suffix: str) -> str:
-        return f"{number}{suffix}"
+    def _safe_get(self, data: Dict, key: str, default="N/A"):
+        """Safely get value from nested dict structure"""
+        try:
+            return data[key]['value']
+        except (KeyError, TypeError):
+            return default
 
-    def get_curr_weather_and_two_next_periods(self) -> (Dict, Dict, Dict):
-        asyncio.run(self._update_data())
-
-        # Pull weather data from Environment Canada Weather website
-        curr_conditions, forecast, curr_aqi, air_quality_next, alerts = self.ec_weather.conditions, self.ec_weather.daily_forecasts, self.ec_air_quality.current, self.ec_air_quality.forecasts, self.ec_weather.alerts
-
-        # Get AQI only for next 2 periosd (first 2 items in dict)
-        aqi_forecast_next_2_periods = list(islice(air_quality_next["daily"].items(), 2))
-    
-        # Format weather data
-        current, period_1, period_2, alerts = self._format_current_period(curr_conditions, curr_aqi), self._format_future_period(forecast[0], aqi_forecast_next_2_periods[0], dict_num=1), self._format_future_period(forecast[1], aqi_forecast_next_2_periods[1], dict_num=2), self._format_alerts(alerts)
-
-        # Combine dictionaries to be returned
-        return (
-            {**current, 
-            "current_date": self.get_local_time().strftime('%A %d %B %Y, %H:%M').capitalize(),
-            "sunrise": self.get_sunrise(),
-            "sunset": self.get_sunset()
-            },
-            period_1,
-            period_2,
-            alerts
-
-        )
-
-    def _format_alerts(self, alerts : Dict) -> List:
-        list_of_notices = []
-        for value in alerts.values():
-            if len(value["value"])>0:
-                notice = value["label"] + ": "  + value["value"][0]["title"]
-                list_of_notices.append(notice)
-        return list_of_notices
-
-    def _format_current_period(self, conditions: Dict, aqi: str) -> Dict:
+    def _format_current_weather(self) -> Dict:
+        conditions = self.ec_weather.conditions
+        current_aqi = self.ec_air_quality.current
+        
         if not conditions:
-            return {
-                "period0_temp": "N/A",
-                "period0_humidex": "N/A",
-                "period0_humidity": "N/A",
-                "period0_uv_index": "N/A",
-                "period0_weather_icon": 0,
-                "period0_aqi": "N/A"
-            }
+            return self._get_empty_current_weather()
+        
+        # Get humidex value once
+        humidex_value = self._safe_get(conditions, 'humidex')
+        
         return {
-            "period0_temp": self._format_number(int(round(conditions["temperature"]["value"], 0)), TEMP_SUFFIX),
-            "period0_humidex": self._format_number(conditions["humidex"]["value"], TEMP_SUFFIX),
-            "period0_humidity": self._format_number(conditions["humidity"]["value"], PRECIP_SUFFIX),
-            "period0_uv_index": conditions["uv_index"]["value"],
-            "period0_weather_icon": int(conditions["icon_code"]["value"]),
-            "period0_aqi": aqi or "0"
+            "temperature": f"{int(round(self._safe_get(conditions, 'temperature', 0), 0))}°C",
+            "humidex": f"{humidex_value}°C" if humidex_value != "N/A" else "N/A",
+            "humidity": f"{self._safe_get(conditions, 'humidity')}%",
+            "uv_index": self._safe_get(conditions, 'uv_index'),
+            "weather_icon": int(self._safe_get(conditions, 'icon_code', '0')),
+            "aqi": str(current_aqi) if current_aqi else "N/A",
+            "current_date": self._get_formatted_date(),
+            "sunrise": self._format_time(self._safe_get(conditions, 'sunrise')),
+            "sunset": self._format_time(self._safe_get(conditions, 'sunset'))
         }
 
-    def _format_future_period(self, forecast: Dict, aqi_forecast_item: Tuple, dict_num: int) -> Dict:
-        title, aqi_value = aqi_forecast_item
+    def _format_forecast_periods(self) -> List[Dict]:
+        forecasts = self.ec_weather.daily_forecasts
+        aqi_forecasts = self.ec_air_quality.forecasts
+        
+        if not forecasts or len(forecasts) < 2:
+            return []
+            
+        # Get AQI values
+        aqi_values = list(aqi_forecasts.get("daily", {}).values())[:2] if aqi_forecasts else []
+        
+        return [
+            self._format_single_period(forecasts[i], aqi_values[i] if i < len(aqi_values) else "N/A")
+            for i in range(min(2, len(forecasts)))
+        ]
+
+    def _format_single_period(self, forecast: Dict, aqi_value) -> Dict:
         return {
-            f"period{dict_num}_title": self._capitalize(forecast["period"]),
-            f"period{dict_num}_forecast": forecast["text_summary"],
-            f"period{dict_num}_temp": self._format_number(forecast["temperature"], TEMP_SUFFIX),
-            f"period{dict_num}_temp_type": forecast["temperature_class"],
-            f"period{dict_num}_weather_icon": int(forecast['icon_code']),
-            f"period{dict_num}_precip": self._format_number(forecast["precip_probability"], PRECIP_SUFFIX),
-            "aqi_next_period": str(aqi_value),
+            "title": forecast.get("period", "").capitalize(),
+            "forecast": forecast.get("text_summary", ""),
+            "temperature": f"{forecast.get('temperature', 0)}°C",
+            "temperature_type": forecast.get("temperature_class", ""),
+            "weather_icon": int(forecast.get('icon_code', '0')),
+            "precipitation_chance": f"{forecast.get('precip_probability', 0)}%",
+            "aqi": str(aqi_value)
         }
-   
-    def get_timezone(self):
+
+    def _format_alerts(self) -> List[str]:
+        alerts = self.ec_weather.alerts
+        if not alerts:
+            return []
+            
+        alert_list = []
+        for alert_data in alerts.values():
+            if alert_data.get("value"):
+                for alert in alert_data["value"]:
+                    alert_list.append(f"{alert_data['label']}: {alert['title']}")
+                    
+        return alert_list
+
+    def _get_empty_current_weather(self) -> Dict:
+        return {
+            "temperature": "N/A",
+            "humidex": "N/A", 
+            "humidity": "N/A",
+            "uv_index": "N/A",
+            "weather_icon": 0,
+            "aqi": "N/A",
+            "current_date": self._get_formatted_date(),
+            "sunrise": "N/A",
+            "sunset": "N/A"
+        }
+
+    def _get_timezone(self) -> str:
+        """Get timezone string from coordinates"""
         tf = TimezoneFinder()
+        timezone = tf.timezone_at(lat=self.coordinates[0], lng=self.coordinates[1])
+        if not timezone:
+            raise ValueError("Could not determine timezone from coordinates")
+        return timezone
 
-        # Use timezonefinder to get the timezone
-        timezone_str = tf.timezone_at(lat=self.coordinates[0], lng=self.coordinates[1])
-        if timezone_str is None:
-            raise ValueError("Could not determine the timezone from the provided coordinates.")
-        return timezone_str
-
-    def get_local_time(self):
-        # Get the current time
-        local_timezone = pytz.timezone(self.get_timezone())
-        local_time = datetime.datetime.now(local_timezone)  # you get the local time (not UTC) directly
-        return local_time
-    
-    def get_sunrise(self):
+    def _get_formatted_date(self) -> str:
+        """Get formatted current date and time"""
         try:
-            return self.utc_to_local(self.ec_weather.conditions['sunrise']['value'])
-        except:
-            return "N/A"
-        
-    def get_sunset(self):
-        try:
-            return self.utc_to_local(self.ec_weather.conditions['sunset']['value'])
-        except:
+            local_tz = pytz.timezone(self._timezone)
+            local_time = datetime.datetime.now(local_tz)
+            return local_time.strftime('%A %d %B %Y, %H:%M').capitalize()
+        except Exception:
             return "N/A"
 
-    def utc_to_local(self, utc_dt):
-        # Check if utc_dt is a valid datetime object
-        if utc_dt is None or not isinstance(utc_dt, datetime.datetime):
-            raise ValueError("Invalid utc_dt: utc_dt must be a valid datetime object.")
-
-        # Get the timezone string from coordinates
-        local_tz_str = self.get_timezone()
-        
-        # Create a timezone object from the string
-        local_tz = pytz.timezone(local_tz_str)
-        
-        # Convert the UTC datetime object to the local timezone
-        local_dt = utc_dt.astimezone(local_tz)  # since utc_dt now has pytz.utc, we don't need to replace it again
-        
-        # Return the local datetime
-        return local_dt.strftime('%H:%M')
+    def _format_time(self, utc_datetime) -> str:
+        """Convert UTC datetime to local time string"""
+        if not utc_datetime or not isinstance(utc_datetime, datetime.datetime):
+            return "N/A"
+            
+        try:
+            local_tz = pytz.timezone(self._timezone)
+            local_time = utc_datetime.astimezone(local_tz)
+            return local_time.strftime('%H:%M')
+        except Exception:
+            return "N/A"

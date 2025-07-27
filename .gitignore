@@ -20,6 +20,7 @@ install guide.txt
 # Distribution / packaging
 .DS_Store
 .Python
+.vscode
 build/
 develop-eggs/
 dist/

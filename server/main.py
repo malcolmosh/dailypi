@@ -173,7 +173,7 @@ def fetch_image_from_gmail():
 
 def fetch_weather():
   weather_service = GetEnviroCanWeather(WEATHER_COORDINATES)
-  return weather_service.get_curr_weather_and_two_next_periods()
+  return weather_service.get_weather_data()
 
 def fetch_calendar_events():
   flask.session['service_name'] = 'GCALENDAR'
@@ -187,7 +187,7 @@ def fetch_calendar_events():
 
   else:   
     weather_service = GetEnviroCanWeather(WEATHER_COORDINATES)   # Get local timezone from weather service
-    local_timezone_str = weather_service.get_timezone()
+    local_timezone_str = weather_service._timezone 
 
     google_calendar = GCalConnector(creds = credentials, local_timezone_str= local_timezone_str, calendar_id=GOOGLE_CALENDAR_ID)
     #google_calendar.get_calendars_list() # Run to print the available calendars in your account
@@ -231,30 +231,36 @@ def api_route_calendar_events():
 # display weather output fetched from Weather Canada
 @app.route('/weather_output')
 def weather_output():
-
-  current_weather, forecast_period_1, forecast_period_2, alerts = fetch_weather()
-    
-  return(f'{current_weather, forecast_period_1, forecast_period_2, alerts}')
+    weather_data = fetch_weather()
+    return f'{weather_data}'
 
 # display dashboard homepage
 @app.route('/dashboard_homepage')
 def draw_homepage():
+    # Get weather data as a dictionary
+    weather_data = fetch_weather()
+    current_weather_dict = weather_data["current"]
+    forecast_1_period_dict = weather_data["period_1"]
+    forecast_period_2_dict = weather_data["period_2"]
+    alerts = weather_data["alerts"]
 
-  # Get weather
-  current_weather_dict, forecast_1_period_dict, forecast_period_2_dict, alerts = fetch_weather()
+    # Get grocery list
+    grocery_items = {"grocery_list": fetch_grocery_list()}
 
-  # Get grocery list
-  grocery_items = {"grocery_list" : fetch_grocery_list()}
+    # Get calendar items
+    calendar_items = {"calendar_events": fetch_calendar_events()}
 
-  # Get calendar items
-  calendar_items = {"calendar_events" : fetch_calendar_events()}
-
-  final_svg = SVGFile(template_svg_filepath=os.path.join(dir_path, "svg_template.svg"), output_filename= os.path.join(dir_path, "svg_output.svg"))
-  final_svg.update_svg(current_weather_dict = current_weather_dict, forecast_1_period_dict = forecast_1_period_dict, 
-                       forecast_period_2_dict = forecast_period_2_dict, grocery_dict = grocery_items, calendar_dict = calendar_items)
-  output = final_svg.send_to_pi()
-  
-  return send_file(output, mimetype="image/png")
+    final_svg = SVGFile(template_svg_filepath=os.path.join(dir_path, "svg_template.svg"), 
+                       output_filename=os.path.join(dir_path, "svg_output.svg"))
+    
+    final_svg.update_svg(current_weather_dict=current_weather_dict, 
+                        forecast_1_period_dict=forecast_1_period_dict, 
+                        forecast_period_2_dict=forecast_period_2_dict, 
+                        grocery_dict=grocery_items, 
+                        calendar_dict=calendar_items)
+    output = final_svg.send_to_pi()
+    
+    return send_file(output, mimetype="image/png")
 
 
 # display image pulled from gmail

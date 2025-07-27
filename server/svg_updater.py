@@ -17,33 +17,38 @@ class SVGFile:
 
     def update_svg(self, current_weather_dict, forecast_1_period_dict, forecast_period_2_dict, grocery_dict, calendar_dict):
         # Update the SVG file's text fields with new data
-       
-        all_supplied_dicts = [current_weather_dict, forecast_1_period_dict, forecast_period_2_dict, grocery_dict, calendar_dict]
-        
-        # print(all_supplied_dicts)
+    
+        period_dicts = [
+            (current_weather_dict, ""),      # No prefix for current
+            (forecast_1_period_dict, "period1_"),
+            (forecast_period_2_dict, "period2_"),
+            (grocery_dict, ""),
+            (calendar_dict, "")
+        ]
 
         actions_dict = {
             "grocery_list": self.handle_grocery,
             "calendar_events": self.handle_calendar,
             "forecast": self.handle_forecast,
             "uv_index": self.handle_uv_index,
-            "temp_type": self.handle_temp_type,
+            "temperature_type": self.handle_temp_type,  # Note: changed from "temp_type" to match your data
             "weather_icon": self.handle_icon_code,
             "default_replace_text" : self.handle_text_element
         }
                 
-        # Iterate through every dictionary in our concatenated list of dictionaries
-        for index, every_dict in enumerate(all_supplied_dicts) : 
-            # In each dict, iterate through every key in the dictionary (these are items we want to replace)
-            for key, value in every_dict.items():
-                # If there is a special SVG replacement logic for the key value, look it up in our dictionary of actions
-                trimmed_key = re.sub(r'(period0_|period1_|period2_)', '', key) # trim any prefix in the key
-                action = actions_dict.get(trimmed_key, actions_dict["default_replace_text"])
-                action(index, key, value) # run action on original key
-
+        for period_index, (period_dict, prefix) in enumerate(period_dicts):
+            for key, value in period_dict.items():
+                # Add prefix for forecast periods
+                svg_key = f"{prefix}{key}" if prefix else key
+                
+                # Get action for this key type
+                action = actions_dict.get(key, actions_dict["default_replace_text"])
+                
+                # Call action with proper parameters (index, key, value)
+                action(period_index, svg_key, value)
+                
         # Compile the new SVG file and output it
         self.tree.write(self.output_filename, encoding='utf-8', pretty_print=True)
-
 
     def send_to_pi(self):
 
