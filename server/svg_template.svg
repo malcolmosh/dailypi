@@ -31,7 +31,9 @@
 </g>
 
 <text id="current_date" x="400" y="31" text-anchor="middle" class="font-reg main_title font-bold">Mercredi 21 août 2023 - 08h00</text>
-<text id="period0_temp" transform="matrix(1 0 0 1 461.7501 115)" class="font-reg temp-font">31°C</text>
+<text id="temp" transform="matrix(1 0 0 1 461.7501 115)" class="font-reg temp-font">31°C</text>
+<text id="humidity" transform="matrix(1 0 0 1 230 185)" class="font-reg sun-fonts">0% h.</text>
+<text id="period1_aqi" transform="matrix(1 0 0 1 315 185)" class="font-reg sun-fonts">AQI:9</text>
 <text id="sunrise" transform="matrix(1 0 0 1 440.6053 185.1628)" class="font-reg sun-fonts font-bold">00:30</text>
 <text id="sunset" transform="matrix(1 0 0 1 546.8005 185.5837)" class="font-reg sun-fonts font-bold">00:30</text>
 <text id="period1_title" transform="matrix(1 0 0 1 203.6151 225)" class="font-reg st5 font-bold">Ce matin</text>
@@ -157,7 +159,7 @@
 		C566.4,359.9,566.1,360.5,566.1,361.1z"/>
 </g>
 
-<g id="period0_weather_icon">
+<g id="weather_icon">
 	<rect x="258.8" y="55.3" class="st13" width="138.7" height="90.8"/>
 	<g id="wi-cloud" class="hidden">
 		<path class="st10" d="M263.9,114.9c0-7.2,2.2-13.7,6.8-19.3c4.5-5.7,10.3-9.3,17.2-10.8c2-8.6,6.4-15.7,13.3-21.2

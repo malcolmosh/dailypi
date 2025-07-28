@@ -15,15 +15,15 @@ class SVGFile:
         self.output_filename = output_filename
 
 
-    def update_svg(self, current_weather_dict, forecast_1_period_dict, forecast_period_2_dict, grocery_dict, calendar_dict):
+    def update_svg(self, current_weather_dict, forecast_period_1_dict, forecast_period_2_dict, grocery_dict, calendar_dict):
         # Update the SVG file's text fields with new data
     
         period_dicts = [
             (current_weather_dict, ""),      # No prefix for current
-            (forecast_1_period_dict, "period1_"),
+            (forecast_period_1_dict, "period1_"),
             (forecast_period_2_dict, "period2_"),
             (grocery_dict, ""),
-            (calendar_dict, "")
+            (calendar_dict, "") 
         ]
 
         actions_dict = {
@@ -31,20 +31,20 @@ class SVGFile:
             "calendar_events": self.handle_calendar,
             "forecast": self.handle_forecast,
             "uv_index": self.handle_uv_index,
-            "temperature_type": self.handle_temp_type,  # Note: changed from "temp_type" to match your data
+            "temp_type": self.handle_temp_type,  # Fixed key name
             "weather_icon": self.handle_icon_code,
-            "default_replace_text" : self.handle_text_element
+            "default_replace_text": self.handle_text_element
         }
                 
         for period_index, (period_dict, prefix) in enumerate(period_dicts):
             for key, value in period_dict.items():
+
                 # Add prefix for forecast periods
                 svg_key = f"{prefix}{key}" if prefix else key
+                print(f"Processing: {svg_key} = {value}")
                 
-                # Get action for this key type
+                # Look up action based on the original key (without prefix)
                 action = actions_dict.get(key, actions_dict["default_replace_text"])
-                
-                # Call action with proper parameters (index, key, value)
                 action(period_index, svg_key, value)
                 
         # Compile the new SVG file and output it

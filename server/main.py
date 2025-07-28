@@ -240,7 +240,7 @@ def draw_homepage():
     # Get weather data as a dictionary
     weather_data = fetch_weather()
     current_weather_dict = weather_data["current"]
-    forecast_1_period_dict = weather_data["period_1"]
+    forecast_period_1_dict = weather_data["period_1"]
     forecast_period_2_dict = weather_data["period_2"]
     alerts = weather_data["alerts"]
 
@@ -254,7 +254,7 @@ def draw_homepage():
                        output_filename=os.path.join(dir_path, "svg_output.svg"))
     
     final_svg.update_svg(current_weather_dict=current_weather_dict, 
-                        forecast_1_period_dict=forecast_1_period_dict, 
+                        forecast_period_1_dict=forecast_period_1_dict, 
                         forecast_period_2_dict=forecast_period_2_dict, 
                         grocery_dict=grocery_items, 
                         calendar_dict=calendar_items)

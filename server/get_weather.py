@@ -54,9 +54,9 @@ class GetEnviroCanWeather:
         humidex_value = self._safe_get(conditions, 'humidex')
         
         return {
-            "temperature": f"{int(round(self._safe_get(conditions, 'temperature', 0), 0))}°C",
+            "temp": f"{int(round(self._safe_get(conditions, 'temperature', 0), 0))}°C",
             "humidex": f"{humidex_value}°C" if humidex_value != "N/A" else "N/A",
-            "humidity": f"{self._safe_get(conditions, 'humidity')}%",
+            "humidity": f"{self._safe_get(conditions, 'humidity')}% h.r.",
             "uv_index": self._safe_get(conditions, 'uv_index'),
             "weather_icon": int(self._safe_get(conditions, 'icon_code', '0')),
             "aqi": str(current_aqi) if current_aqi else "N/A",
@@ -84,11 +84,11 @@ class GetEnviroCanWeather:
         return {
             "title": forecast.get("period", "").capitalize(),
             "forecast": forecast.get("text_summary", ""),
-            "temperature": f"{forecast.get('temperature', 0)}°C",
-            "temperature_type": forecast.get("temperature_class", ""),
+            "temp": f"{forecast.get('temperature', 0)}°C",  
+            "temp_type": forecast.get("temperature_class", ""), 
             "weather_icon": int(forecast.get('icon_code', '0')),
-            "precipitation_chance": f"{forecast.get('precip_probability', 0)}%",
-            "aqi": str(aqi_value)
+            "precip": f"{forecast.get('precip_probability', 0)}%",
+            "aqi": f"AQI: {aqi_value}"
         }
 
     def _format_alerts(self) -> List[str]:
@@ -106,7 +106,7 @@ class GetEnviroCanWeather:
 
     def _get_empty_current_weather(self) -> Dict:
         return {
-            "temperature": "N/A",
+            "temp": "N/A",
             "humidex": "N/A", 
             "humidity": "N/A",
             "uv_index": "N/A",
