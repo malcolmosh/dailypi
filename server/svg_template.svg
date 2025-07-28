@@ -32,7 +32,7 @@
 
 <text id="current_date" x="400" y="31" text-anchor="middle" class="font-reg main_title font-bold">Mercredi 21 août 2023 - 08h00</text>
 <text id="temp" transform="matrix(1 0 0 1 461.7501 115)" class="font-reg temp-font">31°C</text>
-<text id="humidity" transform="matrix(1 0 0 1 230 185)" class="font-reg sun-fonts">0% h.</text>
+<text id="humidity" transform="matrix(1 0 0 1 200 185)" class="font-reg sun-fonts">0% h.</text>
 <text id="period1_aqi" transform="matrix(1 0 0 1 315 185)" class="font-reg sun-fonts">AQI:9</text>
 <text id="sunrise" transform="matrix(1 0 0 1 440.6053 185.1628)" class="font-reg sun-fonts font-bold">00:30</text>
 <text id="sunset" transform="matrix(1 0 0 1 546.8005 185.5837)" class="font-reg sun-fonts font-bold">00:30</text>
